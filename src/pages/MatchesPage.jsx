@@ -89,42 +89,7 @@ export default function MatchesPage() {
         ))}
       </div>
 
-      <Card className="space-y-3 border-pink-200 bg-gradient-to-b from-pink-50 to-white p-3">
-        
-        <div className="flex flex-col gap-2 sm:flex-row">
-          <Input
-            aria-label="Facilitator"
-            placeholder="Facilitator name"
-            value={facilitator}
-            onChange={(e) => setFac(e.target.value)}
-            className="flex-1"
-          />
-          <Button
-            variant="secondary"
-            onPress={() => {
-              store.setFacilitator(facilitator);
-              store.showToast("Facilitator saved", "ok");
-            }}
-          >
-            Save
-          </Button>
-          <Button
-            className="bg-pink-500 text-white"
-            onPress={() => {
-              if (!store.matches.length) {
-                store.setFacilitator(facilitator);
-                store.showToast("Saved. No matches yet.", "ok");
-                return;
-              }
-              if (!confirm("Apply facilitator to all matches?")) return;
-              const r = store.applyFacilitatorToAll(facilitator);
-              store.showToast(`Applied to ${r.count} matches`, "ok");
-            }}
-          >
-            Apply to all
-          </Button>
-        </div>
-      </Card>
+      
 
       <Card className="space-y-3 p-3">
         <div className="font-display text-base font-semibold">Create match</div>

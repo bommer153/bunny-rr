@@ -55,4 +55,4 @@ npm run discord:register
 | `/bunny matches` | List matches |
 | `/bunny facilitator name:` | Set facilitator |
 
-Legacy static HTML/JS lives under `js/`, `css/`, and `*.html` page files if you still need them. The app entry is now Vite `index.html` → `src/`.
+The app entry is Vite `index.html` → `src/`. Routes are `/`, `/players`, `/matches`, `/leaderboard`.

@@ -1,4 +1,10 @@
 {
+  "redirects": [
+    { "source": "/players.html", "destination": "/players", "permanent": true },
+    { "source": "/matches.html", "destination": "/matches", "permanent": true },
+    { "source": "/leaderboard.html", "destination": "/leaderboard", "permanent": true },
+    { "source": "/settings.html", "destination": "/", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
