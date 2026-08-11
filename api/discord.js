@@ -1,5 +1,4 @@
-import { InteractionResponseType, InteractionType, verifyKey } from "discord-interactions";
-import { waitUntil } from "@vercel/functions";
+import { createRequire } from "node:module";
 import {
   addPlayer,
   createMatch,
@@ -12,8 +11,21 @@ import {
   showStatus,
 } from "./lib/rr.js";
 
-export const runtime = "nodejs";
-export const maxDuration = 15;
+const require = createRequire(import.meta.url);
+const {
+  verifyKey,
+  InteractionType,
+  InteractionResponseType,
+} = require("discord-interactions");
+
+export const config = {
+  api: { bodyParser: false },
+};
+
+const PONG = InteractionResponseType?.PONG ?? 1;
+const MESSAGE = InteractionResponseType?.CHANNEL_MESSAGE_WITH_SOURCE ?? 4;
+const PING = InteractionType?.PING ?? 1;
+const COMMAND = InteractionType?.APPLICATION_COMMAND ?? 2;
 
 function envStatus() {
   return {
@@ -21,33 +33,29 @@ function envStatus() {
     JSONBIN_BIN_ID: Boolean(process.env.JSONBIN_BIN_ID || process.env.VITE_JSONBIN_BIN_ID),
     JSONBIN_MASTER_KEY: Boolean(process.env.JSONBIN_MASTER_KEY || process.env.VITE_JSONBIN_MASTER_KEY),
     JSONBIN_ACCESS_KEY: Boolean(process.env.JSONBIN_ACCESS_KEY || process.env.VITE_JSONBIN_ACCESS_KEY),
+    verifyKey: typeof verifyKey === "function",
   };
 }
 
-function readHeader(headers, name) {
-  if (!headers) return "";
+function header(req, name) {
+  const headers = req.headers || {};
   if (typeof headers.get === "function") return headers.get(name) || "";
   const value = headers[name] || headers[name.toLowerCase()];
   return Array.isArray(value) ? value[0] || "" : value || "";
 }
 
-async function readRawBody(request) {
-  if (request && typeof request.text === "function") {
-    return request.text();
-  }
-  if (typeof request?.body === "string") return request.body;
-  if (Buffer.isBuffer(request?.body)) return request.body.toString("utf8");
-  if (request?.rawBody) {
-    return Buffer.isBuffer(request.rawBody) ? request.rawBody.toString("utf8") : String(request.rawBody);
-  }
-  if (request?.readableEnded || request?.complete) {
-    return typeof request.body === "object" && request.body ? JSON.stringify(request.body) : "";
+async function readRawBody(req) {
+  if (typeof req.text === "function") return Buffer.from(await req.text(), "utf8");
+  if (Buffer.isBuffer(req.body)) return req.body;
+  if (typeof req.body === "string") return Buffer.from(req.body, "utf8");
+  if (req.rawBody) {
+    return Buffer.isBuffer(req.rawBody) ? req.rawBody : Buffer.from(String(req.rawBody), "utf8");
   }
   const chunks = [];
-  for await (const chunk of request) {
+  for await (const chunk of req) {
     chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
   }
-  return Buffer.concat(chunks).toString("utf8");
+  return Buffer.concat(chunks);
 }
 
 function getOpt(interaction, name) {
@@ -62,9 +70,7 @@ function subcommand(interaction) {
 }
 
 async function handleCommand(interaction) {
-  const name = interaction.data?.name;
-  if (name !== "bunny") return { ok: false, error: "Unknown command." };
-
+  if (interaction.data?.name !== "bunny") return { ok: false, error: "Unknown command." };
   const sub = subcommand(interaction);
   try {
     if (sub === "status") return await showStatus();
@@ -90,22 +96,47 @@ async function handleCommand(interaction) {
   }
 }
 
-async function editOriginal(interaction, content) {
-  const url = `https://discord.com/api/v10/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`;
-  const res = await fetch(url, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ content }),
-  });
-  if (!res.ok) {
-    console.error("Discord follow-up failed", res.status, await res.text());
+function json(res, body, status = 200) {
+  if (res && typeof res.status === "function") {
+    return res.status(status).json(body);
   }
+  return Response.json(body, { status });
 }
 
-async function runCommand(interaction) {
-  const result = await handleCommand(interaction);
-  const content = !result.ok && result.error ? `⚠️ ${result.error}` : result.message || "Done.";
-  await editOriginal(interaction, content);
+async function processPost(req, res) {
+  const publicKey = String(process.env.DISCORD_PUBLIC_KEY || "").trim().replace(/^["']|["']$/g, "");
+  if (!publicKey) {
+    if (res?.status) return res.status(500).send("Missing DISCORD_PUBLIC_KEY");
+    return new Response("Missing DISCORD_PUBLIC_KEY", { status: 500 });
+  }
+
+  const signature = header(req, "x-signature-ed25519");
+  const timestamp = header(req, "x-signature-timestamp");
+  const rawBody = await readRawBody(req);
+
+  const valid = await verifyKey(rawBody, signature, timestamp, publicKey);
+  if (!valid) {
+    if (res?.status) return res.status(401).send("Bad request signature");
+    return new Response("Bad request signature", { status: 401 });
+  }
+
+  const interaction = JSON.parse(rawBody.toString("utf8"));
+
+  if (interaction.type === PING) {
+    return json(res, { type: PONG });
+  }
+
+  if (interaction.type === COMMAND) {
+    const result = await handleCommand(interaction);
+    const content = !result.ok && result.error ? `⚠️ ${result.error}` : result.message || "Done.";
+    return json(res, {
+      type: MESSAGE,
+      data: { content },
+    });
+  }
+
+  if (res?.status) return res.status(400).send("Unknown interaction");
+  return new Response("Unknown interaction", { status: 400 });
 }
 
 export function GET() {
@@ -117,37 +148,20 @@ export function GET() {
 }
 
 export async function POST(request) {
-  const publicKey = String(process.env.DISCORD_PUBLIC_KEY || "").trim().replace(/^["']|["']$/g, "");
-  if (!publicKey) {
-    return new Response("Missing DISCORD_PUBLIC_KEY", { status: 500 });
-  }
+  return processPost(request, null);
+}
 
-  const signature = readHeader(request.headers, "x-signature-ed25519");
-  const timestamp = readHeader(request.headers, "x-signature-timestamp");
-  const rawBody = await readRawBody(request);
-
-  let valid = false;
-  try {
-    valid = await verifyKey(rawBody, signature, timestamp, publicKey);
-  } catch (err) {
-    console.error("verifyKey threw", err);
-  }
-  if (!valid) {
-    return new Response("Bad request signature", { status: 401 });
-  }
-
-  const interaction = JSON.parse(rawBody);
-
-  if (interaction.type === InteractionType.PING) {
-    return Response.json({ type: InteractionResponseType.PONG });
-  }
-
-  if (interaction.type === InteractionType.APPLICATION_COMMAND) {
-    waitUntil(runCommand(interaction));
-    return Response.json({
-      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE ?? 5,
+export default async function handler(req, res) {
+  if (req.method === "GET") {
+    return res.status(200).json({
+      ok: true,
+      message: "Bunny Discord interactions endpoint. Discord will POST here.",
+      env: envStatus(),
     });
   }
-
-  return new Response("Unknown interaction", { status: 400 });
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "GET, POST");
+    return res.status(405).send("Method not allowed");
+  }
+  return processPost(req, res);
 }
