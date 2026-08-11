@@ -1,10 +1,38 @@
+import { useMemo, useState } from "react";
 import { Card } from "@heroui/react";
 import { useBunny } from "../store";
 
+const TABS = [
+  { id: "wins", label: "Most wins" },
+  { id: "played", label: "Most played" },
+  { id: "losses", label: "Most losses" },
+];
+
+function sortBoard(players, tab) {
+  return [...players].sort((a, b) => {
+    if (tab === "played" && b.gamesPlayed !== a.gamesPlayed) return b.gamesPlayed - a.gamesPlayed;
+    if (tab === "losses" && b.losses !== a.losses) return b.losses - a.losses;
+    if (tab === "wins" && b.wins !== a.wins) return b.wins - a.wins;
+    if (b.wins !== a.wins) return b.wins - a.wins;
+    const aPct = a.gamesPlayed ? a.wins / a.gamesPlayed : 0;
+    const bPct = b.gamesPlayed ? b.wins / b.gamesPlayed : 0;
+    if (bPct !== aPct) return bPct - aPct;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export default function LeaderboardPage() {
   const store = useBunny();
-  const board = store.leaderboard;
+  const [tab, setTab] = useState("wins");
+  const board = useMemo(() => sortBoard(store.players, tab), [store.players, tab]);
   const top3 = board.slice(0, 3);
+  const leader = board[0];
+  const highlight =
+    tab === "played"
+      ? ["Top GP", leader?.gamesPlayed ?? 0]
+      : tab === "losses"
+        ? ["Top L", leader?.losses ?? 0]
+        : ["Top W", leader?.wins ?? 0];
 
   return (
     <div className="space-y-3">
@@ -13,12 +41,27 @@ export default function LeaderboardPage() {
           ["Players", store.players.length, "text-pink-500"],
           ["Played", store.gamesPlayed, "text-emerald-600"],
           ["Pending", store.matchesPending, "text-amber-600"],
-          ["Top W", board[0]?.wins ?? 0, "text-pink-400"],
+          [highlight[0], highlight[1], "text-pink-400"],
         ].map(([label, value, color]) => (
           <Card key={label} className="p-3">
             <div className="text-[11px] font-bold text-[#8d7380]">{label}</div>
             <div className={`font-display text-2xl ${color}`}>{value}</div>
           </Card>
+        ))}
+      </div>
+
+      <div className="inline-flex flex-wrap rounded-full bg-pink-100/80 p-1">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setTab(t.id)}
+            className={`rounded-full px-3 py-1.5 text-xs font-extrabold ${
+              tab === t.id ? "bg-[#2b1a24] text-white" : "text-[#5c4450]"
+            }`}
+          >
+            {t.label}
+          </button>
         ))}
       </div>
 
@@ -40,7 +83,13 @@ export default function LeaderboardPage() {
                 </div>
                 <div className="font-bold">{p.name}</div>
                 <div className="text-xs text-[#8d7380]">
-                  {p.wins}W · {p.losses}L
+                  {tab === "played"
+                    ? `${p.gamesPlayed} gp`
+                    : tab === "losses"
+                      ? `${p.losses}L`
+                      : `${p.wins}W`}
+                  {" · "}
+                  {p.wins}-{p.losses}
                 </div>
               </div>
             ))}
@@ -53,6 +102,8 @@ export default function LeaderboardPage() {
         <div className="space-y-2">
           {board.map((p, i) => {
             const pct = p.gamesPlayed ? Math.round((p.wins / p.gamesPlayed) * 100) : 0;
+            const metric =
+              tab === "played" ? `${p.gamesPlayed} GP` : tab === "losses" ? `${p.losses}L` : `${p.wins}W`;
             return (
               <div
                 key={p.id}
@@ -67,7 +118,7 @@ export default function LeaderboardPage() {
                     </div>
                   </div>
                 </div>
-                <span className="font-display text-pink-600">{p.wins}W</span>
+                <span className="font-display text-pink-600">{metric}</span>
               </div>
             );
           })}
