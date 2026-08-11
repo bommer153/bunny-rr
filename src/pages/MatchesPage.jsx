@@ -90,15 +90,7 @@ export default function MatchesPage() {
       </div>
 
       <Card className="space-y-3 border-pink-200 bg-gradient-to-b from-pink-50 to-white p-3">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <div className="font-display text-base font-semibold">Admin · Facilitator</div>
-            <p className="text-xs text-[#8d7380]">Applied when matches are created</p>
-          </div>
-          <Chip size="sm" className="bg-pink-100 text-pink-600">
-            Admin
-          </Chip>
-        </div>
+        
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             aria-label="Facilitator"
