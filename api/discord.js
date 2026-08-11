@@ -1,4 +1,5 @@
 import { InteractionResponseType, InteractionType, verifyKey } from "discord-interactions";
+import { waitUntil } from "@vercel/functions";
 import {
   addPlayer,
   createMatch,
@@ -12,6 +13,7 @@ import {
 } from "./lib/rr.js";
 
 export const runtime = "nodejs";
+export const maxDuration = 15;
 
 function envStatus() {
   return {
@@ -22,22 +24,30 @@ function envStatus() {
   };
 }
 
-function header(request, name) {
-  const value = request.headers.get(name);
-  return Array.isArray(value) ? value[0] : value || "";
+function readHeader(headers, name) {
+  if (!headers) return "";
+  if (typeof headers.get === "function") return headers.get(name) || "";
+  const value = headers[name] || headers[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] || "" : value || "";
 }
 
-function messageResponse(content, ephemeral = false) {
-  return Response.json(
-    {
-      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-      data: {
-        content,
-        flags: ephemeral ? 64 : 0,
-      },
-    },
-    { status: 200 }
-  );
+async function readRawBody(request) {
+  if (request && typeof request.text === "function") {
+    return request.text();
+  }
+  if (typeof request?.body === "string") return request.body;
+  if (Buffer.isBuffer(request?.body)) return request.body.toString("utf8");
+  if (request?.rawBody) {
+    return Buffer.isBuffer(request.rawBody) ? request.rawBody.toString("utf8") : String(request.rawBody);
+  }
+  if (request?.readableEnded || request?.complete) {
+    return typeof request.body === "object" && request.body ? JSON.stringify(request.body) : "";
+  }
+  const chunks = [];
+  for await (const chunk of request) {
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
+  }
+  return Buffer.concat(chunks).toString("utf8");
 }
 
 function getOpt(interaction, name) {
@@ -53,9 +63,7 @@ function subcommand(interaction) {
 
 async function handleCommand(interaction) {
   const name = interaction.data?.name;
-  if (name !== "bunny") {
-    return { ok: false, error: "Unknown command." };
-  }
+  if (name !== "bunny") return { ok: false, error: "Unknown command." };
 
   const sub = subcommand(interaction);
   try {
@@ -82,6 +90,24 @@ async function handleCommand(interaction) {
   }
 }
 
+async function editOriginal(interaction, content) {
+  const url = `https://discord.com/api/v10/webhooks/${interaction.application_id}/${interaction.token}/messages/@original`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) {
+    console.error("Discord follow-up failed", res.status, await res.text());
+  }
+}
+
+async function runCommand(interaction) {
+  const result = await handleCommand(interaction);
+  const content = !result.ok && result.error ? `⚠️ ${result.error}` : result.message || "Done.";
+  await editOriginal(interaction, content);
+}
+
 export function GET() {
   return Response.json({
     ok: true,
@@ -91,16 +117,21 @@ export function GET() {
 }
 
 export async function POST(request) {
-  const publicKey = process.env.DISCORD_PUBLIC_KEY;
+  const publicKey = String(process.env.DISCORD_PUBLIC_KEY || "").trim().replace(/^["']|["']$/g, "");
   if (!publicKey) {
     return new Response("Missing DISCORD_PUBLIC_KEY", { status: 500 });
   }
 
-  const signature = header(request, "x-signature-ed25519");
-  const timestamp = header(request, "x-signature-timestamp");
-  const rawBody = await request.text();
+  const signature = readHeader(request.headers, "x-signature-ed25519");
+  const timestamp = readHeader(request.headers, "x-signature-timestamp");
+  const rawBody = await readRawBody(request);
 
-  const valid = await verifyKey(rawBody, signature, timestamp, publicKey);
+  let valid = false;
+  try {
+    valid = await verifyKey(rawBody, signature, timestamp, publicKey);
+  } catch (err) {
+    console.error("verifyKey threw", err);
+  }
   if (!valid) {
     return new Response("Bad request signature", { status: 401 });
   }
@@ -112,11 +143,10 @@ export async function POST(request) {
   }
 
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
-    const result = await handleCommand(interaction);
-    if (!result.ok && result.error) {
-      return messageResponse(`⚠️ ${result.error}`, true);
-    }
-    return messageResponse(result.message || "Done.");
+    waitUntil(runCommand(interaction));
+    return Response.json({
+      type: InteractionResponseType.DEFERRED_CHANNEL_MESSAGE_WITH_SOURCE ?? 5,
+    });
   }
 
   return new Response("Unknown interaction", { status: 400 });
