@@ -79,7 +79,12 @@ async function handleCommand(interaction) {
     if (sub === "add-player") return await addPlayer(getOpt(interaction, "name"));
     if (sub === "remove-player") return await removePlayer(getOpt(interaction, "name"));
     if (sub === "facilitator") return await setFacilitator(getOpt(interaction, "name") || "");
-    if (sub === "matches") return await listMatches(getOpt(interaction, "filter") || "pending");
+    if (sub === "matches") {
+      return await listMatches(
+        getOpt(interaction, "filter") || "pending",
+        getOpt(interaction, "player") || ""
+      );
+    }
     if (sub === "create-match") {
       return await createMatch(
         getOpt(interaction, "player1"),

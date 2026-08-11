@@ -67,6 +67,12 @@ const commands = [
               { name: "All", value: "all" },
             ],
           },
+          {
+            type: 3,
+            name: "player",
+            description: "Only matches involving this player",
+            required: false,
+          },
         ],
       },
       {

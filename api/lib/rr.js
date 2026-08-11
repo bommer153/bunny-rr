@@ -219,12 +219,28 @@ export async function scoreMatch(winnerName, loserName) {
   return { ok: true, message: `**${winner.name}** beat **${loser.name}** (1-0).` };
 }
 
-export async function listMatches(filter = "pending") {
+export async function listMatches(filter = "pending", playerQuery = "") {
   const data = await loadData();
   let list = data.matches;
   if (filter === "pending") list = list.filter((m) => m.status !== "completed");
   if (filter === "done") list = list.filter((m) => m.status === "completed");
-  if (!list.length) return { ok: true, message: "No matches in that filter." };
+
+  const name = String(playerQuery || "").trim();
+  let player = null;
+  if (name) {
+    player = findPlayer(data, name);
+    if (!player) return { ok: false, error: `Player **${name}** not found.` };
+    list = list.filter((m) => m.player1Id === player.id || m.player2Id === player.id);
+  }
+
+  if (!list.length) {
+    return {
+      ok: true,
+      message: player
+        ? `No matches in that filter for **${player.name}**.`
+        : "No matches in that filter.",
+    };
+  }
 
   const lines = list.slice(0, 20).map((m) => {
     const a = playerName(data, m.player1Id);
