@@ -1,30 +1,12 @@
 import { useMemo, useState } from "react";
 import { Card } from "@heroui/react";
+import RankingTabs, { sortByRank } from "../components/RankingTabs";
 import { useBunny } from "../store";
-
-const TABS = [
-  { id: "wins", label: "Most wins" },
-  { id: "played", label: "Most played" },
-  { id: "losses", label: "Most losses" },
-];
-
-function sortBoard(players, tab) {
-  return [...players].sort((a, b) => {
-    if (tab === "played" && b.gamesPlayed !== a.gamesPlayed) return b.gamesPlayed - a.gamesPlayed;
-    if (tab === "losses" && b.losses !== a.losses) return b.losses - a.losses;
-    if (tab === "wins" && b.wins !== a.wins) return b.wins - a.wins;
-    if (b.wins !== a.wins) return b.wins - a.wins;
-    const aPct = a.gamesPlayed ? a.wins / a.gamesPlayed : 0;
-    const bPct = b.gamesPlayed ? b.wins / b.gamesPlayed : 0;
-    if (bPct !== aPct) return bPct - aPct;
-    return a.name.localeCompare(b.name);
-  });
-}
 
 export default function LeaderboardPage() {
   const store = useBunny();
   const [tab, setTab] = useState("wins");
-  const board = useMemo(() => sortBoard(store.players, tab), [store.players, tab]);
+  const board = useMemo(() => sortByRank(store.players, tab), [store.players, tab]);
   const top3 = board.slice(0, 3);
   const leader = board[0];
   const highlight =
@@ -36,6 +18,8 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-3">
+      <RankingTabs value={tab} onChange={setTab} />
+
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {[
           ["Players", store.players.length, "text-pink-500"],
@@ -47,21 +31,6 @@ export default function LeaderboardPage() {
             <div className="text-[11px] font-bold text-[#8d7380]">{label}</div>
             <div className={`font-display text-2xl ${color}`}>{value}</div>
           </Card>
-        ))}
-      </div>
-
-      <div className="inline-flex flex-wrap rounded-full bg-pink-100/80 p-1">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setTab(t.id)}
-            className={`rounded-full px-3 py-1.5 text-xs font-extrabold ${
-              tab === t.id ? "bg-[#2b1a24] text-white" : "text-[#5c4450]"
-            }`}
-          >
-            {t.label}
-          </button>
         ))}
       </div>
 

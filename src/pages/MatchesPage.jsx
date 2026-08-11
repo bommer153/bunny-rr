@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, Card, Input, Chip } from "@heroui/react";
 import MatchCard from "../components/MatchCard";
+import RankingTabs, { sortByRank } from "../components/RankingTabs";
 import { sortMatchesByEncode, useBunny } from "../store";
 
 export default function MatchesPage() {
@@ -9,6 +10,7 @@ export default function MatchesPage() {
   const [filter, setFilter] = useState("pending");
   const [playerFilter, setPlayerFilter] = useState("");
   const [view, setView] = useState("matches");
+  const [rankTab, setRankTab] = useState("wins");
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
   const [fac, setFac] = useState(null);
@@ -88,6 +90,11 @@ export default function MatchesPage() {
     setP2("");
     store.showToast(result.rematch ? "Rematch created" : "Match created", result.rematch ? "warn" : "ok");
   };
+
+  const rankedPlayers = useMemo(
+    () => sortByRank(store.players, rankTab),
+    [store.players, rankTab]
+  );
 
   const playerOptions = [...store.players]
     .sort((a, b) => a.name.localeCompare(b.name))
@@ -254,10 +261,11 @@ export default function MatchesPage() {
       </div>
 
       {view === "table" ? (
-        <Card className="space-y-2 p-3">
+        <Card className="space-y-3 p-3">
           <div className="font-display text-base font-semibold">League table</div>
+          <RankingTabs value={rankTab} onChange={setRankTab} />
           <div className="space-y-2 md:hidden">
-            {store.leaderboard.map((p, i) => (
+            {rankedPlayers.map((p, i) => (
               <div
                 key={p.id}
                 className="flex items-center justify-between rounded-xl border border-pink-100 bg-white px-3 py-2"
@@ -271,7 +279,9 @@ export default function MatchesPage() {
                     </div>
                   </div>
                 </div>
-                <span className="font-display text-pink-600">{p.wins}W</span>
+                <span className="font-display text-pink-600">
+                  {rankTab === "played" ? `${p.gamesPlayed} GP` : rankTab === "losses" ? `${p.losses}L` : `${p.wins}W`}
+                </span>
               </div>
             ))}
           </div>
@@ -287,7 +297,7 @@ export default function MatchesPage() {
                 </tr>
               </thead>
               <tbody>
-                {store.leaderboard.map((p, i) => {
+                {rankedPlayers.map((p, i) => {
                   const pct = p.gamesPlayed
                     ? Math.round((p.wins / p.gamesPlayed) * 100)
                     : 0;
