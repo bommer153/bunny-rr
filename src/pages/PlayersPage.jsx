@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, Card, Input } from "@heroui/react";
+import PlayerCard from "../components/PlayerCard";
 import { useBunny } from "../store";
 
 export default function PlayersPage() {
@@ -68,33 +69,11 @@ export default function PlayersPage() {
         {!store.players.length ? (
           <p className="text-sm text-[#8d7380]">No players yet.</p>
         ) : (
-          <ul className="space-y-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {store.players.map((p) => (
-              <li
-                key={p.id}
-                className="flex items-center justify-between gap-2 rounded-xl border border-pink-100 bg-white px-3 py-2"
-              >
-                <div>
-                  <div className="text-sm font-extrabold">{p.name}</div>
-                  <div className="text-xs text-[#8d7380]">
-                    {p.wins}W · {p.losses}L · {p.gamesPlayed} gp
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onPress={() => {
-                    if (confirm(`Remove ${p.name}?`)) {
-                      store.removePlayer(p.id);
-                      store.showToast("Removed", "ok");
-                    }
-                  }}
-                >
-                  Remove
-                </Button>
-              </li>
+              <PlayerCard key={p.id} player={p} />
             ))}
-          </ul>
+          </div>
         )}
       </Card>
     </div>

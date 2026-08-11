@@ -8,7 +8,6 @@ const NAV = [
   { to: "/players", label: "Players" },
   { to: "/matches", label: "Matches" },
   { to: "/leaderboard", label: "Board" },
-  { to: "/settings", label: "Settings" },
 ];
 
 function initials(name) {
@@ -136,7 +135,7 @@ export default function AppLayout() {
         </div>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-pink-100 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-pink-100 bg-white/95 px-1 pb-[env(safe-area-inset-bottom)] pt-1 backdrop-blur md:hidden">
         {NAV.map((item) => (
           <NavLink
             key={item.to}

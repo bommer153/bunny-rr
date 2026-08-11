@@ -1,9 +1,7 @@
 export const APP_CONFIG = {
   title: "Bunny Anniv Round Robin",
-  apiBase: "https://api.jsonbin.io/v3",
-  masterKey:
-    "$2a$10$GnJJcQ9SaSbXZfSWPpl3u.bahTntimfTCzgK02b2tXRdUlLFNmFcK",
-  accessKey:
-    "$2a$10$Bul6QHClLPOMsDpbDGfhQOMyTzZfcz8O4C6QxCuXBKJDnkl6hxq2.",
-  binId: "",
+  apiBase: import.meta.env.VITE_JSONBIN_API_BASE || "https://api.jsonbin.io/v3",
+  masterKey: import.meta.env.VITE_JSONBIN_MASTER_KEY || "",
+  accessKey: import.meta.env.VITE_JSONBIN_ACCESS_KEY || "",
+  binId: import.meta.env.VITE_JSONBIN_BIN_ID || "",
 };

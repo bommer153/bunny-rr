@@ -43,12 +43,11 @@ export default function DashboardPage() {
         </Link>
       </Card>
 
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3">
         {[
           ["Players", "/players"],
           ["Matches", "/matches"],
           ["Board", "/leaderboard"],
-          ["Settings", "/settings"],
         ].map(([label, to]) => (
           <Link key={to} to={to}>
             <Card className="p-3 transition hover:-translate-y-0.5 hover:shadow-md">
