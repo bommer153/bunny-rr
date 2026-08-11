@@ -7,6 +7,7 @@ import { useBunny } from "../store";
 export default function MatchesPage() {
   const store = useBunny();
   const [filter, setFilter] = useState("all");
+  const [playerFilter, setPlayerFilter] = useState("");
   const [view, setView] = useState("matches");
   const [p1, setP1] = useState("");
   const [p2, setP2] = useState("");
@@ -20,6 +21,9 @@ export default function MatchesPage() {
 
   const filtered = useMemo(() => {
     return store.matches.filter((m) => {
+      if (playerFilter && m.player1Id !== playerFilter && m.player2Id !== playerFilter) {
+        return false;
+      }
       if (filter === "pending") return m.status !== "completed";
       if (filter === "done") return m.status === "completed";
       if (filter === "rematch") {
@@ -27,7 +31,7 @@ export default function MatchesPage() {
       }
       return true;
     });
-  }, [store.matches, filter, store]);
+  }, [store.matches, filter, playerFilter, store]);
 
   const pairWarning = (() => {
     if (!p1 || !p2) return null;
@@ -322,23 +326,43 @@ export default function MatchesPage() {
       ) : (
         <>
           <Card className="p-3">
-            <div className="mb-2 text-[11px] font-bold uppercase text-[#8d7380]">
-              Status filter
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {["all", "pending", "done", "rematch"].map((f) => (
-                <button
-                  key={f}
-                  type="button"
-                  onClick={() => setFilter(f)}
-                  className={`rounded-full px-3 py-1.5 text-xs font-extrabold ${
-                    filter === f ? "bg-[#2b1a24] text-white" : "bg-pink-100 text-[#5c4450]"
-                  }`}
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
+              <div>
+                <div className="mb-2 text-[11px] font-bold uppercase text-[#8d7380]">
+                  Status filter
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {["all", "pending", "done", "rematch"].map((f) => (
+                    <button
+                      key={f}
+                      type="button"
+                      onClick={() => setFilter(f)}
+                      className={`rounded-full px-3 py-1.5 text-xs font-extrabold ${
+                        filter === f ? "bg-[#2b1a24] text-white" : "bg-pink-100 text-[#5c4450]"
+                      }`}
+                    >
+                      {f === "all" ? "All" : f === "done" ? "Completed" : f[0].toUpperCase() + f.slice(1)}
+                      {f === "rematch" ? ` (${rematchCount})` : ""}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <label className="grid gap-1 text-[11px] font-bold uppercase text-[#8d7380]">
+                Player
+                <select
+                  aria-label="Filter matches by player"
+                  className="h-9 min-w-[11rem] rounded-xl border border-pink-200 bg-white px-3 text-sm font-semibold text-[#2b1a24]"
+                  value={playerFilter}
+                  onChange={(e) => setPlayerFilter(e.target.value)}
                 >
-                  {f === "all" ? "All" : f === "done" ? "Completed" : f[0].toUpperCase() + f.slice(1)}
-                  {f === "rematch" ? ` (${rematchCount})` : ""}
-                </button>
-              ))}
+                  <option value="">All players</option>
+                  {playerOptions.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
           </Card>
 
@@ -348,7 +372,9 @@ export default function MatchesPage() {
             </div>
             {!filtered.length ? (
               <Card className="p-6 text-center text-sm text-[#8d7380]">
-                No matches yet. Create one or generate a round robin.
+                {playerFilter || filter !== "all"
+                  ? "No matches for this filter."
+                  : "No matches yet. Create one or generate a round robin."}
               </Card>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
