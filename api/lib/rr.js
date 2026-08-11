@@ -66,7 +66,10 @@ function leaderboard(data) {
 
 export async function loadData() {
   if (!BIN_ID) throw new Error("Missing JSONBIN_BIN_ID (or VITE_JSONBIN_BIN_ID).");
-  let res = await fetch(`${API_BASE}/b/${BIN_ID}/latest`, { headers: headers() });
+  let res = await fetch(`${API_BASE}/b/${BIN_ID}/latest`, {
+    headers: headers(),
+    signal: AbortSignal.timeout(2500),
+  });
   if (!res.ok) throw new Error(`JSONBin load failed (${res.status})`);
   const json = await res.json();
   const record = json.record || json;
@@ -86,6 +89,7 @@ export async function saveData(data) {
     method: "PUT",
     headers: headers(true),
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(2500),
   });
   if (!res.ok) throw new Error(`JSONBin save failed (${res.status})`);
   return body;

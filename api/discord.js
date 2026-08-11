@@ -11,27 +11,33 @@ import {
   showStatus,
 } from "./lib/rr.js";
 
-export const config = {
-  api: { bodyParser: false },
-};
+export const runtime = "nodejs";
 
-function readRawBody(req) {
-  return new Promise((resolve, reject) => {
-    const chunks = [];
-    req.on("data", (chunk) => chunks.push(chunk));
-    req.on("end", () => resolve(Buffer.concat(chunks)));
-    req.on("error", reject);
-  });
+function envStatus() {
+  return {
+    DISCORD_PUBLIC_KEY: Boolean(process.env.DISCORD_PUBLIC_KEY),
+    JSONBIN_BIN_ID: Boolean(process.env.JSONBIN_BIN_ID || process.env.VITE_JSONBIN_BIN_ID),
+    JSONBIN_MASTER_KEY: Boolean(process.env.JSONBIN_MASTER_KEY || process.env.VITE_JSONBIN_MASTER_KEY),
+    JSONBIN_ACCESS_KEY: Boolean(process.env.JSONBIN_ACCESS_KEY || process.env.VITE_JSONBIN_ACCESS_KEY),
+  };
 }
 
-function reply(res, content, ephemeral = false) {
-  return res.status(200).json({
-    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-    data: {
-      content,
-      flags: ephemeral ? 64 : 0,
+function header(request, name) {
+  const value = request.headers.get(name);
+  return Array.isArray(value) ? value[0] : value || "";
+}
+
+function messageResponse(content, ephemeral = false) {
+  return Response.json(
+    {
+      type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+      data: {
+        content,
+        flags: ephemeral ? 64 : 0,
+      },
     },
-  });
+    { status: 200 }
+  );
 }
 
 function getOpt(interaction, name) {
@@ -48,7 +54,7 @@ function subcommand(interaction) {
 async function handleCommand(interaction) {
   const name = interaction.data?.name;
   if (name !== "bunny") {
-    return { content: "Unknown command.", ephemeral: true };
+    return { ok: false, error: "Unknown command." };
   }
 
   const sub = subcommand(interaction);
@@ -76,39 +82,42 @@ async function handleCommand(interaction) {
   }
 }
 
-export default async function handler(req, res) {
-  if (req.method === "GET") {
-    return res.status(200).send("Bunny Discord interactions endpoint. Discord will POST here.");
-  }
+export function GET() {
+  return Response.json({
+    ok: true,
+    message: "Bunny Discord interactions endpoint. Discord will POST here.",
+    env: envStatus(),
+  });
+}
 
-  if (req.method !== "POST") {
-    res.setHeader("Allow", "GET, POST");
-    return res.status(405).send("Method not allowed");
-  }
-
+export async function POST(request) {
   const publicKey = process.env.DISCORD_PUBLIC_KEY;
-  if (!publicKey) return res.status(500).send("Missing DISCORD_PUBLIC_KEY");
+  if (!publicKey) {
+    return new Response("Missing DISCORD_PUBLIC_KEY", { status: 500 });
+  }
 
-  const signature = req.headers["x-signature-ed25519"];
-  const timestamp = req.headers["x-signature-timestamp"];
-  const rawBody = await readRawBody(req);
+  const signature = header(request, "x-signature-ed25519");
+  const timestamp = header(request, "x-signature-timestamp");
+  const rawBody = await request.text();
 
   const valid = await verifyKey(rawBody, signature, timestamp, publicKey);
-  if (!valid) return res.status(401).send("Bad request signature");
+  if (!valid) {
+    return new Response("Bad request signature", { status: 401 });
+  }
 
-  const interaction = JSON.parse(rawBody.toString("utf8"));
+  const interaction = JSON.parse(rawBody);
 
   if (interaction.type === InteractionType.PING) {
-    return res.status(200).json({ type: InteractionResponseType.PONG });
+    return Response.json({ type: InteractionResponseType.PONG });
   }
 
   if (interaction.type === InteractionType.APPLICATION_COMMAND) {
     const result = await handleCommand(interaction);
     if (!result.ok && result.error) {
-      return reply(res, `⚠️ ${result.error}`, true);
+      return messageResponse(`⚠️ ${result.error}`, true);
     }
-    return reply(res, result.message || "Done.");
+    return messageResponse(result.message || "Done.");
   }
 
-  return res.status(400).send("Unknown interaction");
+  return new Response("Unknown interaction", { status: 400 });
 }
