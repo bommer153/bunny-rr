@@ -50,6 +50,49 @@ function findPlayer(data, name) {
   return data.players.find((p) => p.name.toLowerCase() === q);
 }
 
+function editDistance(a, b) {
+  const rows = a.length + 1;
+  const cols = b.length + 1;
+  const dp = Array.from({ length: rows }, (_, i) => {
+    const row = new Array(cols);
+    row[0] = i;
+    return row;
+  });
+  for (let j = 0; j < cols; j++) dp[0][j] = j;
+  for (let i = 1; i < rows; i++) {
+    for (let j = 1; j < cols; j++) {
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+      );
+    }
+  }
+  return dp[a.length][b.length];
+}
+
+function findPlayerLoose(data, name) {
+  const q = String(name || "").trim().toLowerCase();
+  if (!q) return null;
+  const exact = findPlayer(data, q);
+  if (exact) return exact;
+
+  const starts = data.players.filter((p) => p.name.toLowerCase().startsWith(q));
+  if (starts.length === 1) return starts[0];
+
+  const contains = data.players.filter((p) => p.name.toLowerCase().includes(q));
+  if (contains.length === 1) return contains[0];
+
+  const close = data.players
+    .map((p) => ({ p, d: editDistance(q, p.name.toLowerCase()) }))
+    .filter(({ d, p }) => d <= Math.max(2, Math.floor(p.name.length / 4)))
+    .sort((a, b) => a.d - b.d);
+  if (close.length && close[0].d < (close[1]?.d ?? Infinity)) return close[0].p;
+  return null;
+}
+
+const MATCH_FILTERS = new Set(["pending", "done", "all", "completed"]);
+
 function playerName(data, id) {
   return data.players.find((p) => p.id === id)?.name || "Unknown";
 }
@@ -221,15 +264,35 @@ export async function scoreMatch(winnerName, loserName) {
 
 export async function listMatches(filter = "pending", playerQuery = "") {
   const data = await loadData();
-  let list = data.matches;
-  if (filter === "pending") list = list.filter((m) => m.status !== "completed");
-  if (filter === "done") list = list.filter((m) => m.status === "completed");
+  const rawFilter = String(filter || "").trim();
+  const rawPlayer = String(playerQuery || "").trim();
+  const filterKey = rawFilter.toLowerCase();
 
-  const name = String(playerQuery || "").trim();
+  let status = "pending";
+  let name = rawPlayer;
+  if (MATCH_FILTERS.has(filterKey)) {
+    status = filterKey === "completed" ? "done" : filterKey;
+  } else if (rawFilter) {
+    name = rawFilter;
+    status = rawPlayer ? "pending" : "all";
+  }
+
+  let list = data.matches;
+  if (status === "pending") list = list.filter((m) => m.status !== "completed");
+  if (status === "done") list = list.filter((m) => m.status === "completed");
+
   let player = null;
   if (name) {
-    player = findPlayer(data, name);
-    if (!player) return { ok: false, error: `Player **${name}** not found.` };
+    player = findPlayerLoose(data, name);
+    if (!player) {
+      const names = data.players.map((p) => p.name).slice(0, 12).join(", ");
+      return {
+        ok: false,
+        error: names
+          ? `Player **${name}** not found. Roster: ${names}`
+          : `Player **${name}** not found.`,
+      };
+    }
     list = list.filter((m) => m.player1Id === player.id || m.player2Id === player.id);
   }
 

@@ -59,13 +59,8 @@ const commands = [
           {
             type: 3,
             name: "filter",
-            description: "Which matches",
+            description: "pending, done, all, or a player name",
             required: false,
-            choices: [
-              { name: "Pending", value: "pending" },
-              { name: "Completed", value: "done" },
-              { name: "All", value: "all" },
-            ],
           },
           {
             type: 3,
