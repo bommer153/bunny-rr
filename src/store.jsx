@@ -19,8 +19,8 @@ function isSamePair(match, player1Id, player2Id) {
   return pairKey(match.player1Id, match.player2Id) === pairKey(player1Id, player2Id);
 }
 
-export function sortMatchesByEncode(matches) {
-  return matches
+export function sortMatchesByEncode(matches, { newestFirst = false } = {}) {
+  const list = matches
     .map((m, i) => ({ m, i }))
     .sort((a, b) => {
       const ta = Date.parse(a.m.createdAt || "") || 0;
@@ -29,6 +29,7 @@ export function sortMatchesByEncode(matches) {
       return a.i - b.i;
     })
     .map(({ m }) => m);
+  return newestFirst ? list.reverse() : list;
 }
 
 function loadCache() {

@@ -301,7 +301,9 @@ export async function listMatches(filter = "", playerQuery = "") {
 
   let list = ordered;
   if (status === "pending") list = list.filter((m) => m.status !== "completed");
-  if (status === "done") list = list.filter((m) => m.status === "completed");
+  if (status === "done") {
+    list = list.filter((m) => m.status === "completed").reverse();
+  }
 
   let player = null;
   if (name) {

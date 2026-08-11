@@ -26,7 +26,7 @@ export default function MatchesPage() {
   }, [store.matches]);
 
   const filtered = useMemo(() => {
-    return sortMatchesByEncode(store.matches).filter((m) => {
+    return sortMatchesByEncode(store.matches, { newestFirst: filter === "done" }).filter((m) => {
       if (playerFilter && m.player1Id !== playerFilter && m.player2Id !== playerFilter) {
         return false;
       }
