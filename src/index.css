@@ -1,0 +1,34 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+@theme {
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Fredoka", ui-sans-serif, system-ui, sans-serif;
+  --color-pink-50: #fff0f5;
+  --color-pink-100: #ffe3ee;
+  --color-pink-200: #ffb6c9;
+  --color-pink-400: #ff7aa2;
+  --color-pink-500: #ff4f8b;
+  --color-pink-600: #e33874;
+  --color-ink: #2b1a24;
+  --color-muted: #8d7380;
+  --color-surface: #f7f0f3;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--color-ink);
+  background: var(--color-surface);
+  -webkit-text-size-adjust: 100%;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
