@@ -10,6 +10,7 @@ import {
   setFacilitator,
   showLeaderboard,
   showStatus,
+  startMatch,
   suggestPlayers,
 } from "./lib/rr.js";
 
@@ -108,6 +109,9 @@ async function handleCommand(interaction) {
         getOpt(interaction, "player2"),
         { force: Boolean(getOpt(interaction, "rematch")) }
       );
+    }
+    if (sub === "start") {
+      return await startMatch(getOpt(interaction, "player1"), getOpt(interaction, "player2"));
     }
     if (sub === "score") {
       return await scoreMatch(getOpt(interaction, "winner"), getOpt(interaction, "loser"));

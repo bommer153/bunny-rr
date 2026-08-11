@@ -26,17 +26,31 @@ export default function MatchesPage() {
   }, [store.matches]);
 
   const filtered = useMemo(() => {
-    return sortMatchesByEncode(store.matches, { newestFirst: filter === "done" }).filter((m) => {
-      if (playerFilter && m.player1Id !== playerFilter && m.player2Id !== playerFilter) {
-        return false;
-      }
-      if (filter === "pending") return m.status !== "completed";
+    const byPlayer = (m) =>
+      !playerFilter || m.player1Id === playerFilter || m.player2Id === playerFilter;
+    const list = store.matches.filter((m) => {
+      if (!byPlayer(m)) return false;
+      if (filter === "pending") return m.status === "pending";
+      if (filter === "ongoing") return m.status === "ongoing";
       if (filter === "done") return m.status === "completed";
       if (filter === "rematch") {
         return store.pairCount(m.player1Id, m.player2Id) > 1 || m.rematch;
       }
       return true;
     });
+    if (filter === "done") return sortMatchesByEncode(list, { newestFirst: true });
+    if (filter === "all") {
+      const asc = sortMatchesByEncode(list);
+      return [
+        ...asc.filter((m) => m.status === "ongoing"),
+        ...asc.filter((m) => m.status === "pending"),
+        ...sortMatchesByEncode(
+          asc.filter((m) => m.status === "completed"),
+          { newestFirst: true }
+        ),
+      ];
+    }
+    return sortMatchesByEncode(list);
   }, [store.matches, filter, playerFilter, store]);
 
   const pairWarning = (() => {
@@ -84,8 +98,8 @@ export default function MatchesPage() {
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {[
           ["Total", store.matches.length, "text-pink-500"],
-          ["Players", store.players.length, "text-emerald-600"],
-          ["Pending", store.matchesLeft, "text-amber-600"],
+          ["Pending", store.matchesPending, "text-amber-600"],
+          ["Ongoing", store.matchesOngoing, "text-emerald-600"],
           ["Done", store.gamesPlayed, "text-pink-400"],
         ].map(([label, value, color]) => (
           <Card key={label} className="p-3">
@@ -302,7 +316,7 @@ export default function MatchesPage() {
                   Status filter
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {["all", "pending", "done", "rematch"].map((f) => (
+                  {["all", "pending", "ongoing", "done", "rematch"].map((f) => (
                     <button
                       key={f}
                       type="button"
@@ -311,8 +325,13 @@ export default function MatchesPage() {
                         filter === f ? "bg-[#2b1a24] text-white" : "bg-pink-100 text-[#5c4450]"
                       }`}
                     >
-                      {f === "all" ? "All" : f === "done" ? "Completed" : f[0].toUpperCase() + f.slice(1)}
+                      {f === "all"
+                        ? "All"
+                        : f === "done"
+                          ? "Completed"
+                          : f[0].toUpperCase() + f.slice(1)}
                       {f === "rematch" ? ` (${rematchCount})` : ""}
+                      {f === "ongoing" ? ` (${store.matchesOngoing})` : ""}
                     </button>
                   ))}
                 </div>

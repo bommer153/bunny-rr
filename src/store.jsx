@@ -319,6 +319,8 @@ export function BunnyProvider({ children }) {
   }, [autoSave]);
 
   const gamesPlayed = matches.filter((m) => m.status === "completed").length;
+  const matchesPending = matches.filter((m) => m.status === "pending").length;
+  const matchesOngoing = matches.filter((m) => m.status === "ongoing").length;
   const matchesLeft = matches.filter((m) => m.status !== "completed").length;
 
   const playerName = useCallback(
@@ -359,6 +361,8 @@ export function BunnyProvider({ children }) {
       syncError,
       ready,
       gamesPlayed,
+      matchesPending,
+      matchesOngoing,
       matchesLeft,
       toast,
       showToast,
@@ -475,9 +479,25 @@ export function BunnyProvider({ children }) {
         );
         markDirty(recompute(players, nextMatches), nextMatches, undefined);
       },
+      setMatchStatus(matchId, status) {
+        if (status !== "pending" && status !== "ongoing") {
+          return { ok: false, error: "Invalid match status." };
+        }
+        const nextMatches = matches.map((m) => {
+          if (m.id !== matchId) return m;
+          return {
+            ...m,
+            status,
+            winnerId: null,
+            startedAt: status === "ongoing" ? new Date().toISOString() : null,
+          };
+        });
+        markDirty(recompute(players, nextMatches), nextMatches, undefined);
+        return { ok: true };
+      },
       clearMatch(matchId) {
         const nextMatches = matches.map((m) =>
-          m.id === matchId ? { ...m, winnerId: null, status: "pending" } : m
+          m.id === matchId ? { ...m, winnerId: null, status: "pending", startedAt: null } : m
         );
         markDirty(recompute(players, nextMatches), nextMatches, undefined);
       },
@@ -494,6 +514,8 @@ export function BunnyProvider({ children }) {
       syncError,
       ready,
       gamesPlayed,
+      matchesPending,
+      matchesOngoing,
       matchesLeft,
       toast,
       showToast,

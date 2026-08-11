@@ -91,7 +91,7 @@ function findPlayerLoose(data, name) {
   return null;
 }
 
-const MATCH_FILTERS = new Set(["pending", "done", "all", "completed"]);
+const MATCH_FILTERS = new Set(["pending", "ongoing", "done", "all", "completed", "open"]);
 
 function playerName(data, id) {
   return data.players.find((p) => p.id === id)?.name || "Unknown";
@@ -140,12 +140,13 @@ export async function saveData(data) {
 
 export function snapshot(data) {
   const played = data.matches.filter((m) => m.status === "completed").length;
-  const left = data.matches.filter((m) => m.status !== "completed").length;
+  const pending = data.matches.filter((m) => m.status === "pending").length;
+  const ongoing = data.matches.filter((m) => m.status === "ongoing").length;
   const top = leaderboard(data)[0];
   return [
     `**${data.title}**`,
     `Facilitator: ${data.facilitator || "—"}`,
-    `Players: ${data.players.length} · Matches: ${data.matches.length} · Pending: ${left} · Done: ${played}`,
+    `Players: ${data.players.length} · Matches: ${data.matches.length} · Pending: ${pending} · Ongoing: ${ongoing} · Done: ${played}`,
     `Leader: ${top ? `${top.name} (${top.wins}-${top.losses})` : "—"}`,
   ].join("\n");
 }
@@ -238,6 +239,28 @@ export async function createMatch(name1, name2, { force = false } = {}) {
   };
 }
 
+export async function startMatch(name1, name2) {
+  const data = await loadData();
+  const p1 = findPlayerLoose(data, name1);
+  const p2 = findPlayerLoose(data, name2);
+  if (!p1 || !p2) return { ok: false, error: "Both players must exist on the roster." };
+
+  const match = data.matches.find(
+    (m) => m.status === "pending" && isSamePair(m, p1.id, p2.id)
+  );
+  if (!match) {
+    const live = data.matches.find(
+      (m) => m.status === "ongoing" && isSamePair(m, p1.id, p2.id)
+    );
+    if (live) return { ok: true, message: `**${p1.name}** vs **${p2.name}** is already ongoing.` };
+    return { ok: false, error: `No pending match for **${p1.name}** vs **${p2.name}**.` };
+  }
+  match.status = "ongoing";
+  match.startedAt = new Date().toISOString();
+  await saveData(data);
+  return { ok: true, message: `Ongoing: **${p1.name}** vs **${p2.name}**.` };
+}
+
 export async function scoreMatch(winnerName, loserName) {
   const data = await loadData();
   const winner = findPlayer(data, winnerName);
@@ -277,7 +300,7 @@ export async function listMatches(filter = "", playerQuery = "") {
   const filterKey = rawFilter.toLowerCase();
 
   let name = rawPlayer;
-  let status = name ? "all" : "pending";
+  let status = name ? "all" : "open";
   if (MATCH_FILTERS.has(filterKey)) {
     status = filterKey === "completed" ? "done" : filterKey;
   } else if (rawFilter) {
@@ -300,7 +323,13 @@ export async function listMatches(filter = "", playerQuery = "") {
     });
 
   let list = ordered;
-  if (status === "pending") list = list.filter((m) => m.status !== "completed");
+  if (status === "pending") list = list.filter((m) => m.status === "pending");
+  if (status === "ongoing") list = list.filter((m) => m.status === "ongoing");
+  if (status === "open") {
+    const live = list.filter((m) => m.status === "ongoing");
+    const waiting = list.filter((m) => m.status === "pending");
+    list = [...live, ...waiting];
+  }
   if (status === "done") {
     list = list.filter((m) => m.status === "completed").reverse();
   }
@@ -338,6 +367,7 @@ export async function listMatches(filter = "", playerQuery = "") {
       const w = playerName(data, m.winnerId);
       return `✅ ${tag}${a} vs ${b} — **${w}**`;
     }
+    if (m.status === "ongoing") return `🔴 ${tag}${a} vs ${b} — **ongoing**`;
     return `⏳ ${tag}${a} vs ${b}`;
   });
   if (list.length > 20) lines.push(`…and ${list.length - 20} more`);

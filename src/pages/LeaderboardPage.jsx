@@ -12,7 +12,7 @@ export default function LeaderboardPage() {
         {[
           ["Players", store.players.length, "text-pink-500"],
           ["Played", store.gamesPlayed, "text-emerald-600"],
-          ["Pending", store.matchesLeft, "text-amber-600"],
+          ["Pending", store.matchesPending, "text-amber-600"],
           ["Top W", board[0]?.wins ?? 0, "text-pink-400"],
         ].map(([label, value, color]) => (
           <Card key={label} className="p-3">

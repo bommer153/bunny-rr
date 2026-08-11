@@ -55,8 +55,9 @@ npm run discord:register
 | `/bunny add-player name:` | Add player |
 | `/bunny remove-player name:` | Remove player |
 | `/bunny create-match player1: player2:` | Create match (`rematch:true` to force) |
-| `/bunny score winner: loser:` | Score a pending match |
-| `/bunny matches` | List matches (`player:` to filter, `filter:` pending/done/all) |
+| `/bunny start player1: player2:` | Mark a match ongoing |
+| `/bunny score winner: loser:` | Score a pending or ongoing match |
+| `/bunny matches` | List matches (`player:` to filter, `filter:` pending/ongoing/done/all) |
 | `/bunny facilitator name:` | Set facilitator |
 
 The app entry is Vite `index.html` → `src/`. Routes are `/`, `/players`, `/matches`, `/leaderboard`.

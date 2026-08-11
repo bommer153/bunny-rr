@@ -45,15 +45,15 @@ export default function MatchCard({ match, number }) {
   const p1 = store.playerName(match.player1Id);
   const p2 = store.playerName(match.player2Id);
   const done = match.status === "completed";
+  const ongoing = match.status === "ongoing";
   const p1Won = done && match.winnerId === match.player1Id;
   const p2Won = done && match.winnerId === match.player2Id;
   const winnerName = p1Won ? p1 : p2Won ? p2 : "";
   const isRematch = store.pairCount(match.player1Id, match.player2Id) > 1 || match.rematch;
   const scoreL = p1Won ? "1" : "0";
   const scoreR = p2Won ? "1" : "0";
-  const foot = [done ? `Winner · ${winnerName}` : "Pending", isRematch ? "Rematch" : null]
-    .filter(Boolean)
-    .join(" · ");
+  const statusLabel = done ? `Winner · ${winnerName}` : ongoing ? "Ongoing" : "Pending";
+  const foot = [statusLabel, isRematch ? "Rematch" : null].filter(Boolean).join(" · ");
 
   const pick = (playerId, alreadyWon) => {
     if (alreadyWon) store.clearMatch(match.id);
@@ -61,7 +61,11 @@ export default function MatchCard({ match, number }) {
   };
 
   return (
-    <Card className={`relative overflow-visible pt-3 ${isRematch ? "ring-1 ring-amber-300" : ""}`}>
+    <Card
+      className={`relative overflow-visible pt-3 ${
+        ongoing ? "ring-2 ring-emerald-400" : isRematch ? "ring-1 ring-amber-300" : ""
+      }`}
+    >
       {number ? (
         <div className="absolute left-3 top-3 z-10 font-mono text-[11px] font-extrabold text-[#8d7380]">
           #{number}
@@ -69,7 +73,7 @@ export default function MatchCard({ match, number }) {
       ) : null}
       <div
         className={`absolute left-1/2 top-0 z-10 -translate-x-1/2 rounded-lg px-3 py-1 font-mono text-xs font-bold tracking-wide text-white shadow ${
-          done ? "bg-pink-600" : "bg-[#2a2430]"
+          done ? "bg-pink-600" : ongoing ? "bg-emerald-600" : "bg-[#2a2430]"
         }`}
       >
         {scoreL} <span className="opacity-70">:</span> {scoreR}
@@ -127,23 +131,42 @@ export default function MatchCard({ match, number }) {
               {match.facilitator}
             </Chip>
           ) : null}
-          <p className={`min-w-0 truncate text-[11px] font-semibold italic ${done ? "text-pink-600" : "text-[#8d7380]"}`}>
+          <p
+            className={`min-w-0 truncate text-[11px] font-semibold italic ${
+              done ? "text-pink-600" : ongoing ? "text-emerald-600" : "text-[#8d7380]"
+            }`}
+          >
             {foot}
           </p>
         </div>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-7 shrink-0 px-2 text-[11px] text-red-500"
-          onPress={() => {
-            if (confirm("Delete this match?")) {
-              store.deleteMatch(match.id);
-              store.showToast("Match deleted", "ok");
-            }
-          }}
-        >
-          Delete
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          {!done ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className={`h-7 px-2 text-[11px] ${ongoing ? "text-amber-700" : "text-emerald-700"}`}
+              onPress={() => {
+                store.setMatchStatus(match.id, ongoing ? "pending" : "ongoing");
+                store.showToast(ongoing ? "Back to pending" : "Match ongoing", "ok");
+              }}
+            >
+              {ongoing ? "Stop" : "Start"}
+            </Button>
+          ) : null}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-[11px] text-red-500"
+            onPress={() => {
+              if (confirm("Delete this match?")) {
+                store.deleteMatch(match.id);
+                store.showToast("Match deleted", "ok");
+              }
+            }}
+          >
+            Delete
+          </Button>
+        </div>
       </div>
     </Card>
   );

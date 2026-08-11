@@ -44,6 +44,7 @@ export const BUNNY_COMMANDS = [
             choices: [
               { name: "All", value: "all" },
               { name: "Pending", value: "pending" },
+              { name: "Ongoing", value: "ongoing" },
               { name: "Completed", value: "done" },
             ],
           },
@@ -61,8 +62,17 @@ export const BUNNY_COMMANDS = [
       },
       {
         type: 1,
+        name: "start",
+        description: "Mark a pending match as ongoing",
+        options: [
+          { type: 3, name: "player1", description: "Player 1", required: true, autocomplete: true },
+          { type: 3, name: "player2", description: "Player 2", required: true, autocomplete: true },
+        ],
+      },
+      {
+        type: 1,
         name: "score",
-        description: "Score a pending match",
+        description: "Score a pending or ongoing match",
         options: [
           { type: 3, name: "winner", description: "Winner name", required: true, autocomplete: true },
           { type: 3, name: "loser", description: "Loser name", required: true, autocomplete: true },

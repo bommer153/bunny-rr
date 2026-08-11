@@ -9,6 +9,8 @@ export default function DashboardPage() {
   let next = { title: "Add players", to: "/players", cta: "Players" };
   if (store.players.length >= 2 && !store.matches.length) {
     next = { title: "Create matches", to: "/matches", cta: "Matches" };
+  } else if (store.matchesOngoing > 0) {
+    next = { title: `${store.matchesOngoing} match${store.matchesOngoing === 1 ? "" : "es"} ongoing`, to: "/matches", cta: "Score" };
   } else if (store.matchesLeft > 0) {
     next = { title: `${store.matchesLeft} left to score`, to: "/matches", cta: "Score" };
   } else if (store.matches.length) {
@@ -18,13 +20,14 @@ export default function DashboardPage() {
   const stats = [
     { label: "Players", value: store.players.length, color: "text-pink-500" },
     { label: "Matches", value: store.matches.length, color: "text-emerald-600" },
-    { label: "Pending", value: store.matchesLeft, color: "text-amber-600" },
+    { label: "Pending", value: store.matchesPending, color: "text-amber-600" },
+    { label: "Ongoing", value: store.matchesOngoing, color: "text-emerald-600" },
     { label: "Done", value: store.gamesPlayed, color: "text-pink-400" },
   ];
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
         {stats.map((s) => (
           <Card key={s.label} className="p-3">
             <div className="text-[11px] font-bold text-[#8d7380]">{s.label}</div>
