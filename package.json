@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "discord:register": "node scripts/register-discord-commands.mjs"
+    "discord:register": "node scripts/register-discord-commands.mjs",
+    "discord:register:global": "node scripts/register-discord-commands.mjs --global"
   },
   "dependencies": {
     "@heroui/react": "^3.0.0",

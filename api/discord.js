@@ -77,8 +77,12 @@ async function handleCommand(interaction) {
 }
 
 export default async function handler(req, res) {
+  if (req.method === "GET") {
+    return res.status(200).send("Bunny Discord interactions endpoint. Discord will POST here.");
+  }
+
   if (req.method !== "POST") {
-    res.setHeader("Allow", "POST");
+    res.setHeader("Allow", "GET, POST");
     return res.status(405).send("Method not allowed");
   }
 

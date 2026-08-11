@@ -18,7 +18,7 @@ try {
 
 const APP_ID = process.env.DISCORD_APP_ID;
 const TOKEN = process.env.DISCORD_BOT_TOKEN;
-const GUILD_ID = process.env.DISCORD_GUILD_ID;
+const GUILD_ID = process.argv.includes("--global") ? "" : process.env.DISCORD_GUILD_ID;
 
 if (!APP_ID || !TOKEN) {
   console.error("Set DISCORD_APP_ID and DISCORD_BOT_TOKEN");
@@ -108,6 +108,22 @@ const res = await fetch(url, {
 const body = await res.text();
 if (!res.ok) {
   console.error(res.status, body);
-  process.exit(1);
+  if (res.status === 403 && body.includes("50001")) {
+    console.error(`
+Missing Access: this bot is not in guild ${GUILD_ID}, or it was invited without the applications.commands scope.
+
+1. Open this invite (bot + slash commands):
+   https://discord.com/oauth2/authorize?client_id=${APP_ID}&permissions=274878024704&scope=bot%20applications.commands
+2. Pick the same server as DISCORD_GUILD_ID, then run: npm run discord:register
+
+Or register globally (up to 1 hour to appear) with:
+   npm run discord:register:global
+`);
+  }
+  if (res.status === 401) {
+    console.error("Unauthorized: reset the bot token in the Discord portal and update DISCORD_BOT_TOKEN in .env");
+  }
+  process.exitCode = 1;
+} else {
+  console.log(`Registered /bunny commands ${GUILD_ID ? `on guild ${GUILD_ID}` : "globally"}.`);
 }
-console.log(`Registered /bunny commands ${GUILD_ID ? `on guild ${GUILD_ID}` : "globally"}.`);
