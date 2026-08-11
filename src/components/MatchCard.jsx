@@ -1,6 +1,45 @@
 import { Button, Card, Chip } from "@heroui/react";
 import { useBunny } from "../store";
 
+function WinCheck({ checked, label, align = "left", onToggle }) {
+  return (
+    <label
+      className={`flex min-w-0 cursor-pointer items-center gap-1.5 ${
+        align === "right" ? "flex-row-reverse" : ""
+      }`}
+    >
+      <input
+        type="checkbox"
+        className="peer sr-only"
+        checked={checked}
+        onChange={onToggle}
+        aria-label={`${label} wins`}
+      />
+      <span
+        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+          checked
+            ? "border-pink-500 bg-pink-500 text-white"
+            : "border-pink-300 bg-white"
+        }`}
+      >
+        {checked && (
+          <svg viewBox="0 0 12 12" className="h-3 w-3" aria-hidden="true">
+            <path
+              d="M2.5 6.2 4.8 8.5 9.5 3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        )}
+      </span>
+      <span className="truncate text-sm font-extrabold">{label}</span>
+    </label>
+  );
+}
+
 export default function MatchCard({ match }) {
   const store = useBunny();
   const p1 = store.playerName(match.player1Id);
@@ -12,13 +51,14 @@ export default function MatchCard({ match }) {
   const isRematch = store.pairCount(match.player1Id, match.player2Id) > 1 || match.rematch;
   const scoreL = p1Won ? "1" : "0";
   const scoreR = p2Won ? "1" : "0";
-  const foot = [
-    done ? `Winner · ${winnerName}` : "Pending",
-    isRematch ? "Rematch" : null,
-    match.facilitator || null,
-  ]
+  const foot = [done ? `Winner · ${winnerName}` : "Pending", isRematch ? "Rematch" : null]
     .filter(Boolean)
     .join(" · ");
+
+  const pick = (playerId, alreadyWon) => {
+    if (alreadyWon) store.clearMatch(match.id);
+    else store.setWinner(match.id, playerId);
+  };
 
   return (
     <Card className={`relative overflow-visible pt-3 ${isRematch ? "ring-1 ring-amber-300" : ""}`}>
@@ -43,85 +83,53 @@ export default function MatchCard({ match }) {
         <div className="relative grid grid-cols-2">
           <div className="absolute bottom-[10%] left-1/2 top-[10%] w-px -translate-x-1/2 bg-white/80" />
           <div
-            className={`flex min-h-[4.25rem] flex-col justify-center gap-1 px-3 py-3 pr-5 ${
+            className={`flex items-center px-3 py-2.5 pr-5 ${
               p1Won
                 ? "bg-pink-100/90 text-pink-600"
                 : p2Won
                   ? "bg-[#ece6ea] text-[#8d7380]"
-                  : ""
+                  : "text-[#2b1a24]"
             }`}
           >
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-4 w-4 shrink-0 rounded-full ${
-                  p1Won
-                    ? "bg-pink-500 ring-2 ring-pink-200"
-                    : "bg-gradient-to-br from-pink-200 to-pink-500"
-                }`}
-              />
-              <span className={`truncate text-sm font-extrabold ${p2Won ? "line-through opacity-70" : ""}`}>
-                {p1}
-              </span>
-            </div>
-            {p1Won && (
-              <Chip size="sm" className="w-fit bg-pink-500 text-[10px] font-extrabold text-white">
-                WIN
-              </Chip>
-            )}
+            <WinCheck checked={p1Won} label={p1} onToggle={() => pick(match.player1Id, p1Won)} />
           </div>
           <div className="absolute left-1/2 top-1/2 z-[1] flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-pink-100 bg-white text-[10px] font-extrabold text-[#8d7380] shadow-sm">
             vs
           </div>
           <div
-            className={`flex min-h-[4.25rem] flex-col items-end justify-center gap-1 px-3 py-3 pl-5 text-right ${
+            className={`flex items-center justify-end px-3 py-2.5 pl-5 text-right ${
               p2Won
                 ? "bg-pink-100/90 text-pink-600"
                 : p1Won
                   ? "bg-[#ece6ea] text-[#8d7380]"
-                  : ""
+                  : "text-[#2b1a24]"
             }`}
           >
-            <div className="flex items-center justify-end gap-2">
-              <span className={`truncate text-sm font-extrabold ${p1Won ? "line-through opacity-70" : ""}`}>
-                {p2}
-              </span>
-              <span
-                className={`h-4 w-4 shrink-0 rounded-full ${
-                  p2Won
-                    ? "bg-pink-500 ring-2 ring-pink-200"
-                    : "bg-gradient-to-br from-pink-200 to-pink-500"
-                }`}
-              />
-            </div>
-            {p2Won && (
-              <Chip size="sm" className="w-fit bg-pink-500 text-[10px] font-extrabold text-white">
-                WIN
-              </Chip>
-            )}
+            <WinCheck
+              checked={p2Won}
+              label={p2}
+              align="right"
+              onToggle={() => pick(match.player2Id, p2Won)}
+            />
           </div>
         </div>
       </div>
 
-      <p className={`mt-2 text-center text-[11px] font-semibold italic ${done ? "text-pink-600" : "text-[#8d7380]"}`}>
-        {foot}
-      </p>
-
-      <Card.Footer className="mt-2 grid grid-cols-2 gap-2 p-0">
-        <Button size="sm" variant="secondary" onPress={() => store.setWinner(match.id, match.player1Id)}>
-          {p1} wins
-        </Button>
-        <Button size="sm" className="bg-pink-500 text-white" onPress={() => store.setWinner(match.id, match.player2Id)}>
-          {p2} wins
-        </Button>
-        {done && (
-          <Button size="sm" variant="ghost" onPress={() => store.clearMatch(match.id)}>
-            Undo
-          </Button>
-        )}
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          {match.facilitator ? (
+            <Chip size="sm" className="max-w-full bg-pink-100 text-[10px] font-extrabold text-pink-600">
+              {match.facilitator}
+            </Chip>
+          ) : null}
+          <p className={`min-w-0 truncate text-[11px] font-semibold italic ${done ? "text-pink-600" : "text-[#8d7380]"}`}>
+            {foot}
+          </p>
+        </div>
         <Button
           size="sm"
-          variant="danger"
-          className={done ? "" : "col-span-2"}
+          variant="ghost"
+          className="h-7 shrink-0 px-2 text-[11px] text-red-500"
           onPress={() => {
             if (confirm("Delete this match?")) {
               store.deleteMatch(match.id);
@@ -131,7 +139,7 @@ export default function MatchCard({ match }) {
         >
           Delete
         </Button>
-      </Card.Footer>
+      </div>
     </Card>
   );
 }

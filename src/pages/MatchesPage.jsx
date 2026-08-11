@@ -137,7 +137,14 @@ export default function MatchesPage() {
                 </select>
               </label>
               <label className="grid gap-1 text-xs font-bold uppercase text-[#8d7380]">
-                Facilitator
+                <span className="flex items-center gap-1.5">
+                  Facilitator
+                  {String(facilitator || "").trim() ? (
+                    <Chip size="sm" className="bg-pink-100 normal-case text-[10px] font-extrabold text-pink-600">
+                      {String(facilitator).trim()}
+                    </Chip>
+                  ) : null}
+                </span>
                 <Input
                   aria-label="Match facilitator"
                   value={facilitator}
