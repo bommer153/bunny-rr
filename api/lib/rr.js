@@ -285,7 +285,21 @@ export async function listMatches(filter = "", playerQuery = "") {
     status = "all";
   }
 
-  let list = data.matches;
+  const encodeIndex = new Map();
+  const ordered = data.matches
+    .map((m, i) => ({ m, i }))
+    .sort((a, b) => {
+      const ta = Date.parse(a.m.createdAt || "") || 0;
+      const tb = Date.parse(b.m.createdAt || "") || 0;
+      if (ta !== tb) return ta - tb;
+      return a.i - b.i;
+    })
+    .map(({ m }, i) => {
+      encodeIndex.set(m.id, i + 1);
+      return m;
+    });
+
+  let list = ordered;
   if (status === "pending") list = list.filter((m) => m.status !== "completed");
   if (status === "done") list = list.filter((m) => m.status === "completed");
 
@@ -316,11 +330,13 @@ export async function listMatches(filter = "", playerQuery = "") {
   const lines = list.slice(0, 20).map((m) => {
     const a = playerName(data, m.player1Id);
     const b = playerName(data, m.player2Id);
+    const n = encodeIndex.get(m.id);
+    const tag = n ? `#${n} ` : "";
     if (m.status === "completed") {
       const w = playerName(data, m.winnerId);
-      return `✅ ${a} vs ${b} — **${w}**`;
+      return `✅ ${tag}${a} vs ${b} — **${w}**`;
     }
-    return `⏳ ${a} vs ${b}`;
+    return `⏳ ${tag}${a} vs ${b}`;
   });
   if (list.length > 20) lines.push(`…and ${list.length - 20} more`);
   return { ok: true, message: lines.join("\n") };

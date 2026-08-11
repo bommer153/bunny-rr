@@ -40,7 +40,7 @@ function WinCheck({ checked, label, align = "left", onToggle }) {
   );
 }
 
-export default function MatchCard({ match }) {
+export default function MatchCard({ match, number }) {
   const store = useBunny();
   const p1 = store.playerName(match.player1Id);
   const p2 = store.playerName(match.player2Id);
@@ -62,6 +62,11 @@ export default function MatchCard({ match }) {
 
   return (
     <Card className={`relative overflow-visible pt-3 ${isRematch ? "ring-1 ring-amber-300" : ""}`}>
+      {number ? (
+        <div className="absolute left-3 top-3 z-10 font-mono text-[11px] font-extrabold text-[#8d7380]">
+          #{number}
+        </div>
+      ) : null}
       <div
         className={`absolute left-1/2 top-0 z-10 -translate-x-1/2 rounded-lg px-3 py-1 font-mono text-xs font-bold tracking-wide text-white shadow ${
           done ? "bg-pink-600" : "bg-[#2a2430]"

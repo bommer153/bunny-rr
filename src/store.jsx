@@ -19,6 +19,18 @@ function isSamePair(match, player1Id, player2Id) {
   return pairKey(match.player1Id, match.player2Id) === pairKey(player1Id, player2Id);
 }
 
+export function sortMatchesByEncode(matches) {
+  return matches
+    .map((m, i) => ({ m, i }))
+    .sort((a, b) => {
+      const ta = Date.parse(a.m.createdAt || "") || 0;
+      const tb = Date.parse(b.m.createdAt || "") || 0;
+      if (ta !== tb) return ta - tb;
+      return a.i - b.i;
+    })
+    .map(({ m }) => m);
+}
+
 function loadCache() {
   try {
     const raw = localStorage.getItem(STORAGE_CACHE_KEY);

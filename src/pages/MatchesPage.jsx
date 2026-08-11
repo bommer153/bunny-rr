@@ -2,11 +2,11 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, Card, Input, Chip } from "@heroui/react";
 import MatchCard from "../components/MatchCard";
-import { useBunny } from "../store";
+import { sortMatchesByEncode, useBunny } from "../store";
 
 export default function MatchesPage() {
   const store = useBunny();
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState("pending");
   const [playerFilter, setPlayerFilter] = useState("");
   const [view, setView] = useState("matches");
   const [p1, setP1] = useState("");
@@ -19,8 +19,14 @@ export default function MatchesPage() {
     (m) => store.pairCount(m.player1Id, m.player2Id) > 1 || m.rematch
   ).length;
 
+  const encodeOrder = useMemo(() => {
+    const map = new Map();
+    sortMatchesByEncode(store.matches).forEach((m, i) => map.set(m.id, i + 1));
+    return map;
+  }, [store.matches]);
+
   const filtered = useMemo(() => {
-    return store.matches.filter((m) => {
+    return sortMatchesByEncode(store.matches).filter((m) => {
       if (playerFilter && m.player1Id !== playerFilter && m.player2Id !== playerFilter) {
         return false;
       }
@@ -343,7 +349,7 @@ export default function MatchesPage() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {filtered.map((m) => (
-                  <MatchCard key={m.id} match={m} />
+                  <MatchCard key={m.id} match={m} number={encodeOrder.get(m.id)} />
                 ))}
               </div>
             )}
