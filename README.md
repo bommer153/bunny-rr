@@ -32,7 +32,11 @@ The same JSONBin data is available from Discord via `/bunny` on Vercel.
 
    `https://YOUR-PROJECT.vercel.app/api/discord`
 
-6. Register commands (guild id is instant; omit it for global, can take up to an hour):
+6. Register commands from production env (after deploy) by opening:
+
+   `https://YOUR-PROJECT.vercel.app/api/discord?sync=1`
+
+   Production needs `DISCORD_APP_ID`, `DISCORD_BOT_TOKEN`, and preferably `DISCORD_GUILD_ID` (guild register is instant). Or locally:
 
 ```bash
 $env:DISCORD_APP_ID="..."
@@ -52,7 +56,7 @@ npm run discord:register
 | `/bunny remove-player name:` | Remove player |
 | `/bunny create-match player1: player2:` | Create match (`rematch:true` to force) |
 | `/bunny score winner: loser:` | Score a pending match |
-| `/bunny matches` | List matches |
+| `/bunny matches` | List matches (`player:` to filter, `filter:` pending/done/all) |
 | `/bunny facilitator name:` | Set facilitator |
 
 The app entry is Vite `index.html` → `src/`. Routes are `/`, `/players`, `/matches`, `/leaderboard`.

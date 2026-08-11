@@ -262,19 +262,27 @@ export async function scoreMatch(winnerName, loserName) {
   return { ok: true, message: `**${winner.name}** beat **${loser.name}** (1-0).` };
 }
 
-export async function listMatches(filter = "pending", playerQuery = "") {
+export async function suggestPlayers(query = "") {
+  const data = await loadData();
+  const q = String(query || "").trim().toLowerCase();
+  const list = [...data.players].sort((a, b) => a.name.localeCompare(b.name));
+  const matched = q ? list.filter((p) => p.name.toLowerCase().includes(q)) : list;
+  return matched.slice(0, 25).map((p) => ({ name: p.name, value: p.name }));
+}
+
+export async function listMatches(filter = "", playerQuery = "") {
   const data = await loadData();
   const rawFilter = String(filter || "").trim();
   const rawPlayer = String(playerQuery || "").trim();
   const filterKey = rawFilter.toLowerCase();
 
-  let status = "pending";
   let name = rawPlayer;
+  let status = name ? "all" : "pending";
   if (MATCH_FILTERS.has(filterKey)) {
     status = filterKey === "completed" ? "done" : filterKey;
   } else if (rawFilter) {
     name = rawFilter;
-    status = rawPlayer ? "pending" : "all";
+    status = "all";
   }
 
   let list = data.matches;

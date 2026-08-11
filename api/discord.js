@@ -1,4 +1,5 @@
 import { createRequire } from "node:module";
+import { registerDiscordCommands } from "./lib/discord-commands.js";
 import {
   addPlayer,
   createMatch,
@@ -9,6 +10,7 @@ import {
   setFacilitator,
   showLeaderboard,
   showStatus,
+  suggestPlayers,
 } from "./lib/rr.js";
 
 const require = createRequire(import.meta.url);
@@ -24,17 +26,35 @@ export const config = {
 
 const PONG = InteractionResponseType?.PONG ?? 1;
 const MESSAGE = InteractionResponseType?.CHANNEL_MESSAGE_WITH_SOURCE ?? 4;
+const AUTOCOMPLETE_RESULT = InteractionResponseType?.APPLICATION_COMMAND_AUTOCOMPLETE_RESULT ?? 8;
 const PING = InteractionType?.PING ?? 1;
 const COMMAND = InteractionType?.APPLICATION_COMMAND ?? 2;
+const AUTOCOMPLETE = InteractionType?.APPLICATION_COMMAND_AUTOCOMPLETE ?? 4;
 
 function envStatus() {
   return {
     DISCORD_PUBLIC_KEY: Boolean(process.env.DISCORD_PUBLIC_KEY),
+    DISCORD_APP_ID: Boolean(process.env.DISCORD_APP_ID),
+    DISCORD_BOT_TOKEN: Boolean(process.env.DISCORD_BOT_TOKEN),
+    DISCORD_GUILD_ID: Boolean(process.env.DISCORD_GUILD_ID),
     JSONBIN_BIN_ID: Boolean(process.env.JSONBIN_BIN_ID || process.env.VITE_JSONBIN_BIN_ID),
     JSONBIN_MASTER_KEY: Boolean(process.env.JSONBIN_MASTER_KEY || process.env.VITE_JSONBIN_MASTER_KEY),
     JSONBIN_ACCESS_KEY: Boolean(process.env.JSONBIN_ACCESS_KEY || process.env.VITE_JSONBIN_ACCESS_KEY),
     verifyKey: typeof verifyKey === "function",
   };
+}
+
+function queryParam(req, name) {
+  if (req?.url) {
+    try {
+      const url = new URL(req.url, "http://localhost");
+      if (url.searchParams.has(name)) return url.searchParams.get(name);
+    } catch {
+      // fall through
+    }
+  }
+  const value = req?.query?.[name];
+  return Array.isArray(value) ? value[0] : value;
 }
 
 function header(req, name) {
@@ -80,10 +100,7 @@ async function handleCommand(interaction) {
     if (sub === "remove-player") return await removePlayer(getOpt(interaction, "name"));
     if (sub === "facilitator") return await setFacilitator(getOpt(interaction, "name") || "");
     if (sub === "matches") {
-      return await listMatches(
-        getOpt(interaction, "filter") || "pending",
-        getOpt(interaction, "player") || ""
-      );
+      return await listMatches(getOpt(interaction, "filter") || "", getOpt(interaction, "player") || "");
     }
     if (sub === "create-match") {
       return await createMatch(
@@ -108,7 +125,14 @@ function json(res, body, status = 200) {
   return Response.json(body, { status });
 }
 
+let commandSyncStarted = false;
+
 async function processPost(req, res) {
+  if (!commandSyncStarted) {
+    commandSyncStarted = true;
+    void registerDiscordCommands();
+  }
+
   const publicKey = String(process.env.DISCORD_PUBLIC_KEY || "").trim().replace(/^["']|["']$/g, "");
   if (!publicKey) {
     if (res?.status) return res.status(500).send("Missing DISCORD_PUBLIC_KEY");
@@ -131,6 +155,14 @@ async function processPost(req, res) {
     return json(res, { type: PONG });
   }
 
+  if (interaction.type === AUTOCOMPLETE) {
+    const focused = (interaction.data?.options || [])
+      .flatMap((opt) => (opt.type === 1 ? opt.options || [] : [opt]))
+      .find((opt) => opt.focused);
+    const choices = await suggestPlayers(focused?.value || "");
+    return json(res, { type: AUTOCOMPLETE_RESULT, data: { choices } });
+  }
+
   if (interaction.type === COMMAND) {
     const result = await handleCommand(interaction);
     const content = !result.ok && result.error ? `⚠️ ${result.error}` : result.message || "Done.";
@@ -144,12 +176,20 @@ async function processPost(req, res) {
   return new Response("Unknown interaction", { status: 400 });
 }
 
-export function GET() {
-  return Response.json({
+async function handleGet(req, res) {
+  if (queryParam(req, "sync") === "1" || queryParam(req, "sync") === "commands") {
+    const result = await registerDiscordCommands();
+    return json(res, result, result.ok ? 200 : 500);
+  }
+  return json(res, {
     ok: true,
-    message: "Bunny Discord interactions endpoint. Discord will POST here.",
+    message: "Bunny Discord interactions endpoint. Add ?sync=1 to register slash commands from production env.",
     env: envStatus(),
   });
+}
+
+export async function GET(request) {
+  return handleGet(request, null);
 }
 
 export async function POST(request) {
@@ -158,11 +198,7 @@ export async function POST(request) {
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
-    return res.status(200).json({
-      ok: true,
-      message: "Bunny Discord interactions endpoint. Discord will POST here.",
-      env: envStatus(),
-    });
+    return handleGet(req, res);
   }
   if (req.method !== "POST") {
     res.setHeader("Allow", "GET, POST");
